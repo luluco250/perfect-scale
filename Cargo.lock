@@ -967,6 +967,7 @@ dependencies = [
  "env_logger",
  "log",
  "pollster",
+ "thiserror",
  "wgpu",
  "winit",
 ]

@@ -1,10 +1,34 @@
-use std::{error::Error, fmt};
+use std::error::Error;
 use winit::{
     dpi::LogicalSize,
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::{Window, WindowBuilder},
 };
+
+struct U8Color {
+    r: u8,
+    g: u8,
+    b: u8,
+    a: u8,
+}
+
+impl U8Color {
+    const fn from_rgba(r: u8, g: u8, b: u8, a: u8) -> Self {
+        Self { r, g, b, a }
+    }
+
+    fn to_wgpu(&self) -> wgpu::Color {
+        wgpu::Color {
+            r: (self.r as f64 / 255.0).powf(2.2),
+            g: (self.g as f64 / 255.0).powf(2.2),
+            b: (self.b as f64 / 255.0).powf(2.2),
+            a: self.a as f64 / 255.0,
+        }
+    }
+}
+
+const CORNFLOWER_BLUE: U8Color = U8Color::from_rgba(100, 149, 237, 255);
 
 struct Application {
     surface: wgpu::Surface,
@@ -15,19 +39,10 @@ struct Application {
     window: Window,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 enum AppError {
+    #[error("No compatible adapter found")]
     NoAdapterFound,
-}
-
-impl Error for AppError {}
-
-impl fmt::Display for AppError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::NoAdapterFound => write!(f, "No compatible adapter found"),
-        }
-    }
 }
 
 impl Application {
@@ -122,12 +137,7 @@ impl Application {
                 view: &view,
                 resolve_target: None,
                 ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: f64::powf(100.0 / 255.0, 2.2),
-                        g: f64::powf(149.0 / 255.0, 2.2),
-                        b: f64::powf(237.0 / 255.0, 2.2),
-                        a: 1.0,
-                    }),
+                    load: wgpu::LoadOp::Clear(CORNFLOWER_BLUE.to_wgpu()),
                     store: true,
                 },
             })],
@@ -180,14 +190,14 @@ pub async fn run() -> Result<(), Box<dyn Error>> {
                 }
             }
             Event::RedrawRequested(window_id) if window_id == app.window().id() => {
-				app.update();
-				match app.render() {
-					Ok(_) => {}
-					Err(wgpu::SurfaceError::Lost) => app.resize(app.size),
-					Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
-					Err(e) => eprintln!("{:?}", e),
-				}
-			}
+                app.update();
+                match app.render() {
+                    Ok(_) => {}
+                    Err(wgpu::SurfaceError::Lost) => app.resize(app.size),
+                    Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
+                    Err(e) => eprintln!("{:?}", e),
+                }
+            }
             Event::MainEventsCleared => app.window().request_redraw(),
             _ => {}
         }
